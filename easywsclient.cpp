@@ -1,4 +1,3 @@
-
 #ifdef _WIN32
     #if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)
         #define _CRT_SECURE_NO_WARNINGS // _CRT_SECURE_NO_WARNINGS for sscanf errors in MSVC2013 Express
@@ -52,13 +51,6 @@
     #include <sys/types.h>
     #include <unistd.h>
     #include <stdint.h>
-#ifdef USE_SSL
-    #include <openssl/ssl.h>
-    #include <openssl/conf.h>
-    #include <sstream>
-    #include <memory>
-    #include <stdexcept>
-#endif
     #ifndef _SOCKET_T_DEFINED
         typedef int socket_t;
         #define _SOCKET_T_DEFINED
@@ -74,6 +66,15 @@
     #define socketerrno errno
     #define SOCKET_EAGAIN_EINPROGRESS EAGAIN
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
+#endif
+
+#ifdef USE_SSL
+#include <openssl/ssl.h>
+#include <openssl/conf.h>
+#include <openssl/bio.h>
+#include <sstream>
+#include <memory>
+#include <stdexcept>
 #endif
 
 #include <vector>
@@ -290,7 +291,12 @@ Sec-WebSocket-Version: 13
       sizeRead = BIO_read(web, (char*)&buffer[0]+offset, bufferSize);
     }
     void send( std::vector<uint8_t>& buffer, int* sizeRead) {
-      BIO_write_ex(web, (void*)buffer.data(), buffer.size(), (size_t*)sizeRead);
+      //Yba@LIV: LibreSSL don't have that extended function. Use BIO_write, and kludge-in the "sizeRead" report
+	  const int status = BIO_write(web, (void*)buffer.data(), buffer.size());
+      if (status >= 0)
+          *sizeRead = status;
+      //original code
+      //BIO_write_ex(web, (void*)buffer.data(), buffer.size(), (size_t*)sizeRead);
     }
 
   private:
